@@ -7,8 +7,9 @@
    Certain actions (Play, Music Mode, Battle, etc.)
    require login. Guest users can browse but not play.
    ─────────────────────────────────────────────────── */
-function requireLoginFor(action, callback) {
-  if (AUTH.isLoggedIn()) { callback(); return; }
+async function requireLoginFor(action, callback) {
+  const loggedIn = await AUTH.isLoggedIn();
+  if (loggedIn) { callback(); return; }
   // Save intent so we can deep-link after login
   sessionStorage.setItem('auth_redirect', location.pathname + '#' + action);
   // Show a brief inline nudge then redirect
@@ -79,8 +80,9 @@ document.querySelector('.nav-btn')?.addEventListener('click', () => {
 });
 
 /* ── START PLAYING CTA ───────────────────────────── */
-document.querySelector('.cta-dark')?.addEventListener('click', () => {
-  if (AUTH.isLoggedIn()) {
+document.querySelector('.cta-dark')?.addEventListener('click', async () => {
+  const loggedIn = await AUTH.isLoggedIn();
+  if (loggedIn) {
     window.location.href = 'music_library.html';
   } else {
     window.location.href = 'auth_page.html?tab=signup';

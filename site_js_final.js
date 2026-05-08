@@ -68,6 +68,11 @@ const AUTH = {
 };
 
 // ── DB ────────────────────────────────────────────
+function quoteId(id) {
+  if (typeof id === 'string') return `'${id}'`;
+  return id;
+}
+
 const DB = {
 
   async _req(path, options = {}) {
@@ -91,28 +96,28 @@ const DB = {
   getScenes()            { return this._req('scenes?order=created_at.desc'); },
   getLiveScenes()        { return this._req('scenes?status=eq.Live&order=created_at.desc'); },
   insertScene(s)         { return this._req('scenes', { method:'POST', body: JSON.stringify(s) }); },
-  updateScene(id, patch) { return this._req(`scenes?id=eq.${id}`, { method:'PATCH', body: JSON.stringify(patch) }); },
-  deleteScene(id)        { return this._req(`scenes?id=eq.${id}`, { method:'DELETE', prefer:'return=minimal' }); },
+  updateScene(id, patch) { return this._req(`scenes?id=eq.${quoteId(id)}`, { method:'PATCH', body: JSON.stringify(patch) }); },
+  deleteScene(id)        { return this._req(`scenes?id=eq.${quoteId(id)}`, { method:'DELETE', prefer:'return=minimal' }); },
 
   // ── Songs ──
   getSongs()             { return this._req('songs?order=created_at.desc'); },
   getLiveSongs()         { return this._req('songs?status=eq.Live&order=created_at.desc'); },
   insertSong(s)          { return this._req('songs', { method:'POST', body: JSON.stringify(s) }); },
-  updateSong(id, patch)  { return this._req(`songs?id=eq.${id}`, { method:'PATCH', body: JSON.stringify(patch) }); },
-  deleteSong(id)         { return this._req(`songs?id=eq.${id}`, { method:'DELETE', prefer:'return=minimal' }); },
+  updateSong(id, patch)  { return this._req(`songs?id=eq.${quoteId(id)}`, { method:'PATCH', body: JSON.stringify(patch) }); },
+  deleteSong(id)         { return this._req(`songs?id=eq.${quoteId(id)}`, { method:'DELETE', prefer:'return=minimal' }); },
 
   // ── Profiles ──
-  getProfile(uid)        { return this._req(`profiles?id=eq.${uid}`).then(r => r[0] || null); },
+  getProfile(uid)        { return this._req(`profiles?id=eq.${quoteId(uid)}`).then(r => r[0] || null); },
   getUserByUsername(u)   { return this._req(`profiles?username=eq.${encodeURIComponent(u)}&select=id,username`); },
   insertProfile(p)       { return this._req('profiles', { method:'POST', body: JSON.stringify(p) }); },
-  updateProfile(uid, p)  { return this._req(`profiles?id=eq.${uid}`, { method:'PATCH', body: JSON.stringify(p) }); },
+  updateProfile(uid, p)  { return this._req(`profiles?id=eq.${quoteId(uid)}`, { method:'PATCH', body: JSON.stringify(p) }); },
   getLeaderboard(n=10)   { return this._req(`profiles?select=username,xp,level,streak&order=xp.desc&limit=${n}`); },
 
   // ── Challenges ──
   getChallenges()        { return this._req('challenges?status=eq.Live&order=created_at.desc'); },
   insertChallenge(ch)    { return this._req('challenges', { method:'POST', body: JSON.stringify(ch) }); },
-  updateChallenge(id, p) { return this._req(`challenges?id=eq.${id}`, { method:'PATCH', body: JSON.stringify(p) }); },
-  deleteChallenge(id)    { return this._req(`challenges?id=eq.${id}`, { method:'DELETE', prefer:'return=minimal' }); },
+  updateChallenge(id, p) { return this._req(`challenges?id=eq.${quoteId(id)}`, { method:'PATCH', body: JSON.stringify(p) }); },
+  deleteChallenge(id)    { return this._req(`challenges?id=eq.${quoteId(id)}`, { method:'DELETE', prefer:'return=minimal' }); },
   getAllChallenges()      { return this._req('challenges?order=created_at.desc'); },
 
   // ── XP ──

@@ -42,9 +42,9 @@ async function renderScenes() {
         <td>${statusPill(scene.status)}</td>
         <td>
           <div class="row-actions">
-            <button class="icon-btn" onclick="editScene(${scene.id})" title="Edit"><i class="ti ti-edit"></i></button>
-            <button class="icon-btn danger" onclick="deleteScene(${scene.id})" title="Delete"><i class="ti ti-trash"></i></button>
-            <button class="icon-btn" onclick="toggleSceneStatus(${scene.id},'${scene.status}')" title="Toggle status"><i class="ti ti-toggle-right"></i></button>
+            <button class="icon-btn" onclick="editScene('${scene.id}')" title="Edit"><i class="ti ti-edit"></i></button>
+            <button class="icon-btn danger" onclick="deleteScene('${scene.id}')" title="Delete"><i class="ti ti-trash"></i></button>
+            <button class="icon-btn" onclick="toggleSceneStatus('${scene.id}','${scene.status}')" title="Toggle status"><i class="ti ti-toggle-right"></i></button>
           </div>
         </td>`;
       tbody.appendChild(tr);
@@ -86,8 +86,8 @@ async function renderSongs() {
         <td>${statusPill(status)}</td>
         <td>
           <div class="row-actions">
-            <button class="icon-btn" onclick="editSong(${song.id})" title="Edit"><i class="ti ti-edit"></i></button>
-            <button class="icon-btn danger" onclick="deleteSong(${song.id})" title="Delete"><i class="ti ti-trash"></i></button>
+            <button class="icon-btn" onclick="editSong('${song.id}')" title="Edit"><i class="ti ti-edit"></i></button>
+            <button class="icon-btn danger" onclick="deleteSong('${song.id}')" title="Delete"><i class="ti ti-trash"></i></button>
           </div>
         </td>`;
       tbody.appendChild(tr);
@@ -116,10 +116,7 @@ async function publishContent(type, asDraft = false) {
     showToast('Saving…');
     try {
       await DB.insertScene({
-        id:          Date.now(),
-        title:       line || movie,
-        movie,
-        level:       diff,
+
         xp,
         status:      asDraft ? 'Draft' : 'Live',
         line,
@@ -160,10 +157,7 @@ async function publishContent(type, asDraft = false) {
     showToast('Saving…');
     try {
       await DB.insertSong({
-        id:         Date.now(),
-        title,
-        artist,
-        difficulty: diff,
+
         xp,
         status:     asDraft ? 'Draft' : 'Live',
         lyrics:     lyrics ? lyrics.split('\n').filter(l => l.trim()) : [],

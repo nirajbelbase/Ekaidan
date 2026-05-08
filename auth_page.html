@@ -372,5 +372,80 @@ if (AUTH.currentUser()) {
   window.location.href = sessionStorage.getItem('auth_redirect') || 'index.html';
 }
 </script>
+
+<script>
+async function doSignUp() {
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const username = document.getElementById('signup-username').value.trim();
+
+  const errorBox = document.getElementById('signup-error');
+
+  errorBox.classList.remove('show');
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    errorBox.textContent = error.message;
+    errorBox.classList.add('show');
+    return;
+  }
+
+  // Save profile
+  await supabaseClient.from('profiles').insert({
+    id: data.user.id,
+    username,
+    email,
+    xp: 0,
+    level: 1
+  });
+
+  alert("Account created!");
+  window.location.href = "index.html";
+}
+
+async function doSignIn() {
+  const email = document.getElementById('signin-email').value.trim();
+  const password = document.getElementById('signin-password').value;
+
+  const errorBox = document.getElementById('signin-error');
+
+  errorBox.classList.remove('show');
+
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    errorBox.textContent = error.message;
+    errorBox.classList.add('show');
+    return;
+  }
+
+  window.location.href = "index.html";
+}
+
+async function doReset() {
+  const email = document.getElementById('reset-email').value.trim();
+
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Password reset email sent!");
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
 </body>
 </html>
