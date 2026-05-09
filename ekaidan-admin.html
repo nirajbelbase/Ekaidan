@@ -2643,7 +2643,13 @@
           const s = rows.find(x => x.id === id);
           if (!s) return;
           _editId = id; _editType = 'song';
-          openEditModal('song', s.title, s.artist, s.xp, s.difficulty || 'Beginner', s.status);
+          openEditModal('song', s.title, s.artist, s.xp, s.difficulty || 'Beginner', s.status, {
+            video_url: s.video_url,
+            lyrics: s.lyrics,
+            timestamps: s.timestamps,
+            translations: s.translations,
+            vocab: s.vocab
+          });
         } catch (err) { toast(err.message, true); }
       }
     });
@@ -2705,7 +2711,7 @@
     ═══════════════════════════════════════════ */
     let _editId = null, _editType = null;
 
-    function openEditModal(type, title, secondary, xp, level, status) {
+    function openEditModal(type, title, secondary, xp, level, status, extra = {}) {
       document.getElementById('modal-title').textContent = 'Edit ' + (type === 'scene' ? 'Scene' : 'Song');
       document.getElementById('modal-body').innerHTML = `
     <div class="fg"><label class="fl">${type === 'scene' ? 'Movie' : 'Artist'}</label><input type="text" value="${esc(secondary || '')}" id="m-secondary"></div>
@@ -2714,15 +2720,42 @@
       <div class="fg"><label class="fl">Difficulty</label><select id="m-level"><option${level === 'Beginner' ? ' selected' : ''}>Beginner</option><option${level === 'Intermediate' ? ' selected' : ''}>Intermediate</option><option${level === 'Advanced' ? ' selected' : ''}>Advanced</option></select></div>
       <div class="fg"><label class="fl">XP Reward</label><input type="number" value="${xp || 0}" id="m-xp" min="0"></div>
     </div>
-    <div class="fg"><label class="fl">Status — changes go live instantly</label><select id="m-status"><option${status === 'Live' ? ' selected' : ''}>Live</option><option${status === 'Draft' ? ' selected' : ''}>Draft</option></select></div>`;
+    <div class="fg"><label class="fl">Status — changes go live instantly</label><select id="m-status"><option${status === 'Live' ? ' selected' : ''}>Live</option><option${status === 'Draft' ? ' selected' : ''}>Draft</option></select></div>
+    ${type === 'song' ? `
+      <div class="fg"><label class="fl">YouTube / Spotify Link</label><input type="text" value="${esc(extra.video_url || '')}" id="m-url"></div>
+      <div class="fg"><label class="fl">Lyrics (one per line)</label><textarea id="m-lyrics" style="min-height:72px">${esc((extra.lyrics || []).join('\n'))}</textarea></div>
+      <div class="fg"><label class="fl">Timestamps in seconds (one per line)</label><textarea id="m-timestamps" style="min-height:54px">${esc((extra.timestamps || []).map(t => t == null ? '' : t).join('\n'))}</textarea></div>
+      <div class="fg"><label class="fl">Japanese Translations (one per line)</label><textarea id="m-translations" style="min-height:54px">${esc((extra.translations || []).join('\n'))}</textarea></div>
+      <div class="fg"><label class="fl">Key Vocab / Slang</label><textarea id="m-vocab">${esc(extra.vocab || '')}</textarea></div>` : ''}
+    `;
       document.getElementById('edit-modal').classList.add('open');
     }
 
     async function saveModal() {
       const title = gv('m-title'), secondary = gv('m-secondary'), level = gval('m-level'), xp = gnum('m-xp', 0), status = gval('m-status');
       try {
-        if (_editType === 'scene') await DB.updateScene(_editId, { title, movie: secondary, level, xp, status });
-        else await DB.updateSong(_editId, { title, artist: secondary, difficulty: level, xp, status });
+        if (_editType === 'scene') {
+          await DB.updateScene(_editId, { title, movie: secondary, level, xp, status });
+        } else {
+          const url = gv('m-url');
+          const ytId = extractYTId(url);
+          const lyricsArr = gv('m-lyrics').split('\n').map(l => l.trim()).filter(Boolean);
+          const tsArr = gv('m-timestamps').split('\n').map(l => l.trim()).filter(Boolean).map(Number).filter(n => !Number.isNaN(n));
+          const jpArr = gv('m-translations').split('\n').map(l => l.trim()).filter(Boolean);
+          await DB.updateSong(_editId, {
+            title,
+            artist: secondary,
+            difficulty: level,
+            xp,
+            status,
+            video_url: url || null,
+            youtube_id: ytId || null,
+            lyrics: lyricsArr,
+            timestamps: tsArr,
+            translations: jpArr,
+            vocab: gv('m-vocab') || null
+          });
+        }
         if (_editType === 'scene') await renderScenes(); else await renderSongs();
         closeModal();
         toast(`Changes saved. ${status === 'Live' ? 'Now live on site ✓' : ''}`);
