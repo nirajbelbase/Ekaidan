@@ -7,17 +7,21 @@
 <link rel="stylesheet" href="style.css">
 <style>
 /* ── RESET ── */
-body { overflow-x:hidden; height:100% }
+html, body { height:100%; overflow:hidden }
+body { overflow-x:hidden; display:flex; flex-direction:column }
 
 /* ── TWO-COLUMN SHELL ── */
 .kr-shell {
   display:grid;
   grid-template-columns:1fr 360px;
-  min-height:calc(100vh - 52px); /* subtract nav */
+  flex:1;
+  min-height:0;
+  overflow:hidden;
 }
 @media(max-width:860px){
-  .kr-shell { grid-template-columns:1fr }
+  .kr-shell { grid-template-columns:1fr; overflow-y:auto }
   .kr-sidebar { display:none }
+  .kr-left { min-height:100vh }
 }
 
 /* ────────────── LEFT PANEL ────────────── */
@@ -29,7 +33,8 @@ body { overflow-x:hidden; height:100% }
 
 /* Video */
 .kr-video-wrap { position:relative; padding-top:56.25%; background:#000; flex-shrink:0 }
-.kr-video-wrap iframe { position:absolute; inset:0; width:100%; height:100%; border:none }
+.kr-video-wrap iframe,
+.kr-video-wrap > div { position:absolute; inset:0; width:100%; height:100%; border:none }
 
 /* Song info row */
 .kr-info {
@@ -300,7 +305,7 @@ body { overflow-x:hidden; height:100% }
   <!-- ── LEFT ── -->
   <div class="kr-left">
     <div class="kr-video-wrap">
-      <iframe id="yt-frame" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+      <div id="yt-frame"></div>
     </div>
 
     <div class="kr-info">
@@ -468,14 +473,32 @@ let _pendingYTId = null;
 function maybeInitPlayer() {
   if (!ytReady || !_pendingYTId || ytPlayer) return;
   ytPlayer = new YT.Player('yt-frame', {
-    videoId:     _pendingYTId,
-    playerVars:  { rel:0, modestbranding:1 },
+    width:  '100%',
+    height: '100%',
+    videoId: _pendingYTId,
+    playerVars: {
+      rel:             0,
+      modestbranding:  1,
+      enablejsapi:     1,
+      origin:          location.origin,
+      playsinline:     1,
+    },
     events: {
       onReady: e => {
         startTick();
+        // Ensure the iframe fills its container
+        const iframe = document.querySelector('#yt-frame iframe');
+        if (iframe) {
+          iframe.style.position = 'absolute';
+          iframe.style.inset = '0';
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          iframe.style.border = 'none';
+        }
       },
       onStateChange: e => {
-        document.getElementById('btn-play').textContent = e.data === YT.PlayerState.PLAYING ? '⏸' : '▶';
+        document.getElementById('btn-play').textContent =
+          e.data === YT.PlayerState.PLAYING ? '⏸' : '▶';
       }
     }
   });
@@ -502,8 +525,18 @@ function fmt(s) {
 
 // ── Controls ──
 document.getElementById('btn-play').onclick = () => {
-  if (!ytPlayer?.getPlayerState) return;
-  ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+  if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') {
+    // Player not ready yet — show feedback
+    document.getElementById('btn-play').textContent = '⏳';
+    setTimeout(() => { document.getElementById('btn-play').textContent = '▶'; }, 800);
+    return;
+  }
+  const state = ytPlayer.getPlayerState();
+  if (state === YT.PlayerState.PLAYING) {
+    ytPlayer.pauseVideo();
+  } else {
+    ytPlayer.playVideo();
+  }
 };
 
 document.getElementById('btn-auto').onclick = function () {
@@ -529,8 +562,10 @@ document.getElementById('btn-speed').onclick = function () {
 document.getElementById('btn-replay').onclick = () => replayLine(currentLineIdx);
 
 document.getElementById('progress-bar').onclick = function (e) {
-  if (!ytPlayer?.getDuration) return;
-  ytPlayer.seekTo((e.offsetX / this.offsetWidth) * ytPlayer.getDuration(), true);
+  if (!ytPlayer || typeof ytPlayer.getDuration !== 'function') return;
+  const rect = this.getBoundingClientRect();
+  const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  ytPlayer.seekTo(pct * ytPlayer.getDuration(), true);
 };
 
 // Keyboard shortcuts
@@ -577,7 +612,7 @@ function checkSongComplete(t, dur) {
 
 // ── Replay a line ──
 function replayLine(idx) {
-  if (!ytPlayer || idx < 0 || !_lyrics[idx]) return;
+  if (!ytPlayer || typeof ytPlayer.seekTo !== 'function' || idx < 0 || !_lyrics[idx]) return;
   ytPlayer.seekTo(Math.max(0, _lyrics[idx].time - 0.2), true);
   ytPlayer.playVideo();
   const btn = document.getElementById('btn-replay');
@@ -695,7 +730,7 @@ function buildLyrics(lyrics, slangMap) {
 }
 
 function seekLine(i) {
-  if (!ytPlayer || !_lyrics[i]) return;
+  if (!ytPlayer || typeof ytPlayer.seekTo !== 'function' || !_lyrics[i]) return;
   ytPlayer.seekTo(Math.max(0, _lyrics[i].time - 0.15), true);
   ytPlayer.playVideo();
   currentLineIdx = i - 1;
@@ -801,8 +836,10 @@ function escHtml(s) {
 function parseVocabString(str) {
   if (!str) return [];
   return str.split('\n').map(l => {
-    const [word, jp] = l.split(/→|→/).map(s => s.trim());
-    return word ? { word, jp: jp || '' } : null;
+    // Support separators: →, =, -, :
+    const [word, ...rest] = l.split(/\s*[→=\-:]\s*/);
+    const jp = rest.join(' ').trim();
+    return word?.trim() ? { word: word.trim(), jp: jp || '' } : null;
   }).filter(Boolean);
 }
 

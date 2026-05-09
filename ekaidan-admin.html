@@ -2045,8 +2045,12 @@
                   </div>
                   <div class="fg"><label class="fl">Lyrics (one per line)</label><textarea style="min-height:72px"
                       id="add-song-lyrics" placeholder="When I find myself in times of trouble..."></textarea></div>
+                  <div class="fg"><label class="fl">Timestamps in seconds (one per line, matches lyrics order)</label><textarea style="min-height:54px"
+                      id="add-song-timestamps" placeholder="0&#10;14&#10;28&#10;42"></textarea></div>
+                  <div class="fg"><label class="fl">Japanese Translations (one per line, matches lyrics order)</label><textarea style="min-height:54px"
+                      id="add-song-translations" placeholder="困っている時には&#10;母マリアが..."></textarea></div>
                   <div class="fg"><label class="fl">Key Vocab / Slang</label><textarea id="add-song-vocab"
-                      placeholder="let it be → そのままにしておく"></textarea></div>
+                      placeholder="location = 場所&#10;right there = すぐそこ"></textarea></div>
                   <div class="fg"><label class="fl">YouTube / Spotify Link</label><input type="text"
                       placeholder="https://youtube.com/watch?v=..." id="add-song-url"></div>
                   <div class="fsub">
@@ -2671,8 +2675,11 @@
         toast('Saving…');
         try {
           const ytId = extractYTId(url);
-          await DB.insertSong({ title, artist, video_url: url, youtube_id: ytId, difficulty: gval('add-song-diff'), xp: gnum('add-song-xp', 60), status, lyrics: gv('add-song-lyrics').split('\n').map(l => l.trim()).filter(Boolean), vocab: gv('add-song-vocab') });
-          clearIds(['add-song-title', 'add-song-artist', 'add-song-lyrics', 'add-song-vocab', 'add-song-url']);
+          const lyricsArr = gv('add-song-lyrics').split('\n').map(l => l.trim()).filter(Boolean);
+          const tsArr = gv('add-song-timestamps').split('\n').map(l => l.trim()).filter(Boolean).map(Number);
+          const jpArr = gv('add-song-translations').split('\n').map(l => l.trim());
+          await DB.insertSong({ title, artist, video_url: url, youtube_id: ytId, difficulty: gval('add-song-diff'), xp: gnum('add-song-xp', 60), status, lyrics: lyricsArr, timestamps: tsArr.length ? tsArr : undefined, translations: jpArr.some(j=>j) ? jpArr : undefined, vocab: gv('add-song-vocab') });
+          clearIds(['add-song-title', 'add-song-artist', 'add-song-lyrics', 'add-song-timestamps', 'add-song-translations', 'add-song-vocab', 'add-song-url']);
           await renderSongs();
           toast(asDraft ? 'Song saved as draft.' : `🎵 "${title}" is now ${status === 'Live' ? 'LIVE on site!' : 'saved.'}`);
           if (!asDraft) showPane('songs');
