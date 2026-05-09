@@ -2631,7 +2631,7 @@
       if (act === 'edit-scene') {
         try {
           const rows = await DB.getScenes();
-          const s = rows.find(x => x.id === id);
+          const s = rows.find(x => String(x.id) === id);
           if (!s) return;
           _editId = id; _editType = 'scene';
           openEditModal('scene', s.title, s.movie, s.xp, s.level || 'Beginner', s.status);
@@ -2640,7 +2640,7 @@
       if (act === 'edit-song') {
         try {
           const rows = await DB.getSongs();
-          const s = rows.find(x => x.id === id);
+          const s = rows.find(x => String(x.id) === id);
           if (!s) return;
           _editId = id; _editType = 'song';
           openEditModal('song', s.title, s.artist, s.xp, s.difficulty || 'Beginner', s.status, {
