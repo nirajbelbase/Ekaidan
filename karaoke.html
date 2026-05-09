@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ekaidan — Karaoke Study</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* ── RESET ── */
+body { overflow-x:hidden; height:100% }
+
+/* ── TWO-COLUMN SHELL ── */
+.kr-shell {
+  display:grid;
+  grid-template-columns:1fr 360px;
+  min-height:calc(100vh - 52px); /* subtract nav */
+}
+@media(max-width:860px){
+  .kr-shell { grid-template-columns:1fr }
+  .kr-sidebar { display:none }
+}
+
+/* ────────────── LEFT PANEL ────────────── */
+.kr-left {
+  display:flex; flex-direction:column;
+  background:var(--bg); border-right:0.5px solid var(--border);
+  min-height:0;
+}
+
+/* Video */
+.kr-video-wrap { position:relative; padding-top:56.25%; background:#000; flex-shrink:0 }
+.kr-video-wrap iframe { position:absolute; inset:0; width:100%; height:100%; border:none }
+
+/* Song info row */
+.kr-info {
+  padding:14px 20px 8px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-shrink:0;
+}
+.kr-song-title  { font-size:18px; font-weight:800; letter-spacing:-0.4px; line-height:1.2 }
+.kr-song-artist { font-size:13px; color:var(--txt2); margin-top:2px }
+.kr-xp-badge {
+  background:rgba(245,197,24,0.14); border:0.5px solid rgba(245,197,24,0.35);
+  color:var(--yellow); font-size:12px; font-weight:700;
+  padding:5px 13px; border-radius:100px; white-space:nowrap; flex-shrink:0;
+}
+
+/* Controls */
+.kr-controls { padding:0 20px 10px; display:flex; flex-direction:column; gap:8px; flex-shrink:0 }
+.kr-progress-wrap { display:flex; align-items:center; gap:10px }
+.kr-time { font-size:11px; color:var(--txt3); font-family:monospace; min-width:34px }
+.kr-progress {
+  flex:1; height:5px; background:var(--bg3); border-radius:3px;
+  cursor:pointer; position:relative; overflow:hidden;
+}
+.kr-progress-fill {
+  height:100%; background:var(--yellow); border-radius:3px;
+  transition:width 0.12s linear; pointer-events:none;
+}
+.kr-ctrl-row { display:flex; align-items:center; gap:8px }
+.kr-btn {
+  background:var(--bg3); border:0.5px solid var(--border2);
+  color:var(--txt2); width:36px; height:36px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:15px; transition:all 0.15s; flex-shrink:0;
+  font-family:inherit;
+}
+.kr-btn:hover   { background:var(--bg2); color:var(--txt) }
+.kr-btn.active  { background:var(--yellow); color:#000; border-color:var(--yellow) }
+.kr-play {
+  width:46px; height:46px; background:var(--yellow); color:#000;
+  border-radius:50%; border:none; display:flex; align-items:center;
+  justify-content:center; cursor:pointer; font-size:18px;
+  transition:transform 0.15s; flex-shrink:0;
+}
+.kr-play:hover { transform:scale(1.07) }
+.kr-speed {
+  background:var(--bg3); border:0.5px solid var(--border2);
+  color:var(--txt2); font-size:11px; font-weight:700;
+  padding:5px 10px; border-radius:100px; cursor:pointer;
+  font-family:monospace; margin-left:auto; transition:all 0.15s;
+}
+.kr-speed:hover { color:var(--yellow); border-color:rgba(245,197,24,0.4) }
+
+/* Difficulty filter chips */
+.kr-filters { padding:0 20px 8px; display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0 }
+.diff-chip {
+  font-size:10px; font-weight:700; padding:4px 11px; border-radius:100px;
+  cursor:pointer; border:0.5px solid transparent; transition:all 0.15s; opacity:.45;
+}
+.diff-chip.on { opacity:1 }
+.dc-easy  { background:rgba(34,217,138,.15); color:var(--green);  border-color:rgba(34,217,138,.3) }
+.dc-inter { background:rgba(245,197,24,.15);  color:var(--yellow); border-color:rgba(245,197,24,.3) }
+.dc-adv   { background:rgba(255,140,58,.15);  color:var(--orange); border-color:rgba(255,140,58,.3) }
+.dc-slang { background:rgba(167,139,250,.15); color:var(--purple); border-color:rgba(167,139,250,.3) }
+
+/* Lyrics scroll area */
+.kr-lyrics { flex:1; overflow-y:auto; padding:8px 0 80px; scroll-behavior:smooth }
+
+/* Individual line */
+.kr-line {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 16px; border-radius:10px; margin:2px 8px;
+  cursor:pointer; transition:all 0.22s; opacity:.32; position:relative;
+}
+.kr-line:hover  { opacity:.68; background:var(--bg2) }
+.kr-line.past   { opacity:.25 }
+.kr-line.future { opacity:.32 }
+.kr-line.active {
+  opacity:1; background:rgba(245,197,24,.07);
+  border:0.5px solid rgba(245,197,24,.28);
+  box-shadow:0 0 24px rgba(245,197,24,.07);
+}
+.kr-line.active .kr-en-text { color:var(--yellow) }
+
+.kr-line-body { flex:1; min-width:0 }
+.kr-en {
+  display:flex; align-items:flex-start; gap:7px; flex-wrap:wrap;
+  font-size:15px; font-weight:700; line-height:1.5;
+}
+.kr-en-text { transition:color 0.22s }
+.kr-jp { font-size:12px; color:var(--txt3); margin-top:4px; line-height:1.5 }
+
+/* Replay button on line */
+.kr-line-actions { display:flex; align-items:center; gap:4px; opacity:0; transition:opacity .15s; flex-shrink:0; margin-top:2px }
+.kr-line:hover .kr-line-actions,
+.kr-line.active .kr-line-actions { opacity:1 }
+.replay-btn {
+  width:28px; height:28px; background:var(--bg2);
+  border:0.5px solid var(--border2); border-radius:50%;
+  color:var(--txt3); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:13px; transition:all 0.15s;
+}
+.replay-btn:hover { background:rgba(245,197,24,.14); color:var(--yellow); border-color:rgba(245,197,24,.4) }
+.spinning { animation:spinOnce .35s linear }
+@keyframes spinOnce { to { transform:rotate(-360deg) } }
+
+/* Difficulty badges on lines */
+.diff-badge {
+  font-size:9px; font-weight:700; padding:2px 8px; border-radius:100px; white-space:nowrap; flex-shrink:0;
+}
+.db-easy  { background:rgba(34,217,138,.15); color:var(--green) }
+.db-inter { background:rgba(245,197,24,.15);  color:var(--yellow) }
+.db-adv   { background:rgba(255,140,58,.15);  color:var(--orange) }
+.db-slang { background:rgba(167,139,250,.15); color:var(--purple) }
+
+/* Slang words */
+.slang-word { border-bottom:1.5px dotted var(--purple); cursor:pointer; transition:color .15s }
+.slang-word:hover { color:var(--purple) }
+
+/* Slang tooltip */
+#slang-tip {
+  position:fixed; z-index:9999;
+  background:rgba(18,16,30,.96); border:0.5px solid rgba(167,139,250,.45);
+  border-radius:14px; padding:16px 18px; min-width:220px; max-width:300px;
+  backdrop-filter:blur(14px); box-shadow:0 8px 32px rgba(0,0,0,.6);
+  animation:tipIn .18s cubic-bezier(.16,1,.3,1);
+  pointer-events:none;
+}
+@keyframes tipIn {
+  from { opacity:0; transform:scale(.88) translateY(8px) }
+  to   { opacity:1; transform:scale(1) translateY(0) }
+}
+.tt-word     { font-size:18px; font-weight:800; color:var(--purple); margin-bottom:3px }
+.tt-arrow    { font-size:11px; color:var(--txt3); margin:2px 0 }
+.tt-standard { font-size:14px; font-weight:600; color:var(--txt) }
+.tt-jp       { font-size:13px; color:var(--txt2); margin-top:6px }
+.tt-tone {
+  display:inline-flex; align-items:center; gap:5px;
+  background:rgba(167,139,250,.12); border:0.5px solid rgba(167,139,250,.3);
+  border-radius:100px; padding:3px 10px; font-size:10px; font-weight:700;
+  color:var(--purple); margin-top:8px;
+}
+
+/* XP bar at bottom of left panel */
+.kr-xp-wrap {
+  padding:10px 20px 14px;
+  border-top:0.5px solid var(--border); flex-shrink:0;
+}
+.kr-xp-labels { display:flex; justify-content:space-between; font-size:11px; color:var(--txt3); margin-bottom:5px }
+.kr-xp-track  { height:5px; background:var(--bg3); border-radius:3px; overflow:hidden }
+.kr-xp-fill   { height:100%; background:var(--yellow); border-radius:3px; transition:width .7s cubic-bezier(.4,0,.2,1) }
+
+/* ────────────── RIGHT SIDEBAR ────────────── */
+.kr-sidebar {
+  background:var(--bg2); border-left:0.5px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.kr-tabs { display:flex; border-bottom:0.5px solid var(--border); flex-shrink:0 }
+.kr-tab {
+  flex:1; padding:13px 6px; font-size:12px; font-weight:700;
+  text-align:center; cursor:pointer; color:var(--txt3); transition:all .15s;
+  border:none; background:none; font-family:inherit; border-bottom:2px solid transparent;
+}
+.kr-tab.on { color:var(--yellow); border-bottom-color:var(--yellow) }
+.kr-panel  { flex:1; overflow-y:auto; padding:14px }
+.kr-panel.hidden { display:none }
+
+/* Vocab panel */
+.vocab-item {
+  background:var(--bg3); border:0.5px solid var(--border);
+  border-radius:10px; padding:12px 14px; margin-bottom:8px;
+}
+.vi-word { font-size:14px; font-weight:700; color:var(--purple) }
+.vi-jp   { font-size:13px; color:var(--txt2); margin-top:4px }
+.vi-note { font-size:11px; color:var(--txt3); margin-top:4px; line-height:1.4 }
+
+/* Quiz panel */
+.kq-q {
+  font-size:14px; font-weight:700; line-height:1.6;
+  background:var(--bg3); border-radius:10px; padding:12px 14px; margin-bottom:12px;
+  color:var(--txt);
+}
+.kq-opts { display:flex; flex-direction:column; gap:7px; margin-bottom:10px }
+.kq-opt {
+  background:var(--bg3); border:0.5px solid var(--border2);
+  border-radius:8px; padding:10px 14px; font-size:13px;
+  cursor:pointer; transition:all .15s; color:var(--txt);
+}
+.kq-opt:hover   { border-color:var(--blue); color:var(--blue) }
+.kq-opt.correct { border-color:var(--green); background:rgba(34,217,138,.1); color:var(--green) }
+.kq-opt.wrong   { border-color:var(--red);   background:rgba(255,92,92,.1);   color:var(--red) }
+.kq-hint { font-size:11px; text-align:center; color:var(--txt3); min-height:16px; margin-bottom:6px }
+.kq-xp   { font-size:12px; text-align:center; color:var(--yellow); min-height:16px }
+.kq-next {
+  width:100%; background:var(--yellow); color:#000; border:none;
+  border-radius:8px; padding:10px; font-size:13px; font-weight:700;
+  cursor:pointer; font-family:inherit; display:none; margin-top:4px;
+  transition:opacity .15s;
+}
+.kq-next:hover { opacity:.88 }
+
+/* ────────────── LEVEL-UP MODAL ────────────── */
+.lvl-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.78); z-index:9000;
+  align-items:center; justify-content:center;
+}
+.lvl-overlay.show { display:flex }
+.lvl-box {
+  background:var(--bg2); border:0.5px solid rgba(245,197,24,.5);
+  border-radius:20px; padding:40px 36px; text-align:center;
+  animation:lvlPop .4s cubic-bezier(.16,1,.3,1);
+  position:relative; overflow:hidden; max-width:340px; width:90%;
+}
+@keyframes lvlPop { from{transform:scale(.78);opacity:0} to{transform:scale(1);opacity:1} }
+.lvl-icon  { font-size:60px; margin-bottom:14px }
+.lvl-title { font-size:26px; font-weight:900; color:var(--yellow); margin-bottom:6px }
+.lvl-sub   { font-size:14px; color:var(--txt2); margin-bottom:20px }
+.lvl-close {
+  background:var(--yellow); color:#000; border:none;
+  border-radius:100px; padding:11px 32px; font-size:14px; font-weight:700;
+  cursor:pointer; font-family:inherit;
+}
+.confetti-p {
+  position:absolute; width:8px; height:8px; border-radius:2px;
+  animation:cFall var(--dur) ease-out forwards;
+}
+@keyframes cFall {
+  0%   { transform:translateY(-10px) rotate(0deg); opacity:1 }
+  100% { transform:translateY(240px) rotate(720deg); opacity:0 }
+}
+
+/* No song message */
+.no-song {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:300px; color:var(--txt3); gap:12px; font-size:14px;
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav style="position:sticky;top:0;z-index:100">
+  <div class="logo">
+    <a href="index.html" style="text-decoration:none;color:inherit">E<span>kaidan</span></a>
+  </div>
+  <div id="nav-user" style="display:flex;align-items:center;gap:10px"></div>
+  <a href="music_library.html" style="text-decoration:none">
+    <button class="nav-btn">← Library</button>
+  </a>
+</nav>
+
+<!-- LEVEL-UP MODAL -->
+<div class="lvl-overlay" id="lvl-modal">
+  <div class="lvl-box" id="lvl-box">
+    <div class="lvl-icon">🎉</div>
+    <div class="lvl-title" id="lvl-title">Level Up!</div>
+    <div class="lvl-sub"   id="lvl-sub">You're improving fast!</div>
+    <button class="lvl-close" onclick="closeLvlModal()">Awesome! →</button>
+  </div>
+</div>
+
+<!-- SLANG TOOLTIP -->
+<div id="slang-tip" style="display:none"></div>
+
+<!-- APP SHELL -->
+<div class="kr-shell">
+
+  <!-- ── LEFT ── -->
+  <div class="kr-left">
+    <div class="kr-video-wrap">
+      <iframe id="yt-frame" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+    </div>
+
+    <div class="kr-info">
+      <div>
+        <div class="kr-song-title"  id="song-title">Loading…</div>
+        <div class="kr-song-artist" id="song-artist"></div>
+      </div>
+      <div class="kr-xp-badge" id="xp-badge">+0 XP</div>
+    </div>
+
+    <div class="kr-controls">
+      <div class="kr-progress-wrap">
+        <span class="kr-time" id="t-cur">0:00</span>
+        <div class="kr-progress" id="progress-bar">
+          <div class="kr-progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+        <span class="kr-time" id="t-dur">0:00</span>
+      </div>
+      <div class="kr-ctrl-row">
+        <button class="kr-btn" id="btn-replay" title="Replay line (R)">↩</button>
+        <button class="kr-play" id="btn-play"  title="Play / Pause (Space)">▶</button>
+        <button class="kr-btn" id="btn-auto"   title="Auto-scroll" style="font-size:13px">⬇</button>
+        <button class="kr-btn" id="btn-jp"     title="Toggle Japanese (J)" style="font-size:13px;font-family:sans-serif">あ</button>
+        <button class="kr-speed" id="btn-speed">1×</button>
+      </div>
+    </div>
+
+    <div class="kr-filters">
+      <span class="diff-chip dc-easy  on" data-d="easy">🟢 Easy</span>
+      <span class="diff-chip dc-inter on" data-d="intermediate">🟡 Mid</span>
+      <span class="diff-chip dc-adv   on" data-d="advanced">🟠 Adv</span>
+      <span class="diff-chip dc-slang on" data-d="slang">🟣 Slang</span>
+    </div>
+
+    <div class="kr-lyrics" id="lyrics-wrap"></div>
+
+    <div class="kr-xp-wrap">
+      <div class="kr-xp-labels">
+        <span id="xp-lbl-name">Lv 1 — Listener</span>
+        <span id="xp-lbl-val">0 / 500 XP</span>
+      </div>
+      <div class="kr-xp-track">
+        <div class="kr-xp-fill" id="xp-bar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT SIDEBAR ── -->
+  <div class="kr-sidebar">
+    <div class="kr-tabs">
+      <button class="kr-tab on"  data-tab="vocab">📖 Vocab</button>
+      <button class="kr-tab"     data-tab="quiz">🧠 Quiz</button>
+    </div>
+
+    <div class="kr-panel" id="panel-vocab">
+      <div style="color:var(--txt3);font-size:13px">Loading vocab…</div>
+    </div>
+
+    <div class="kr-panel hidden" id="panel-quiz">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:10px">
+        Tap any lyric line to generate a quiz for it.
+      </div>
+      <div class="kq-q"    id="kq-q">—</div>
+      <div class="kq-opts" id="kq-opts"></div>
+      <div class="kq-hint" id="kq-hint"></div>
+      <div class="kq-xp"   id="kq-xp"></div>
+      <button class="kq-next" id="kq-next" onclick="nextQuiz()">Next question →</button>
+    </div>
+  </div>
+
+</div><!-- .kr-shell -->
+
+<script src="site_js_v5.js"></script>
+<script>
+// ══════════════════════════════════════════════
+//  AUTH GUARD
+// ══════════════════════════════════════════════
+if (!AUTH.requireAuth(location.href)) { /* redirected */ }
+
+// ══════════════════════════════════════════════
+//  LEVEL SYSTEM
+// ══════════════════════════════════════════════
+const LVLS = [
+  { xp:0,    n:1,  name:'Listener' },
+  { xp:500,  n:5,  name:'Vibe Translator' },
+  { xp:1000, n:10, name:'Late Night Speaker' },
+  { xp:2500, n:25, name:'Lyric Master' },
+];
+function getLvl(xp) {
+  let out = LVLS[0];
+  for (const l of LVLS) if (xp >= l.xp) out = l;
+  return out;
+}
+
+let _localXP = 0;
+function initXP() {
+  _localXP = AUTH.currentProfile()?.xp || 0;
+  refreshXPBar();
+}
+function refreshXPBar() {
+  const cur  = getLvl(_localXP);
+  const next = LVLS.find(l => l.xp > cur.xp);
+  const base = cur.xp, top = next ? next.xp : cur.xp + 500;
+  const pct  = Math.min(100, ((_localXP - base) / (top - base)) * 100);
+  document.getElementById('xp-bar').style.width = pct + '%';
+  document.getElementById('xp-lbl-name').textContent = `Lv ${cur.n} — ${cur.name}`;
+  document.getElementById('xp-lbl-val').textContent  = `${_localXP.toLocaleString()} XP`;
+}
+async function addXP(amt) {
+  const before = getLvl(_localXP);
+  _localXP += amt;
+  refreshXPBar();
+  const after = getLvl(_localXP);
+  if (after.n > before.n) showLvlModal(after);
+  const user = AUTH.currentUser();
+  if (user) DB.awardXP(user.id, amt).catch(() => {});
+}
+
+// ── Level up modal ──
+function showLvlModal(lvl) {
+  document.getElementById('lvl-title').textContent = 'Level Up! 🎉';
+  document.getElementById('lvl-sub').textContent   = `You reached Lv ${lvl.n} — ${lvl.name}`;
+  document.getElementById('lvl-modal').classList.add('show');
+  spawnConfetti();
+}
+function closeLvlModal() { document.getElementById('lvl-modal').classList.remove('show') }
+function spawnConfetti() {
+  const box    = document.getElementById('lvl-box');
+  const colors = ['#f5c518','#22d98a','#4fa3ff','#a78bfa','#ff8c3a','#ff5c5c'];
+  for (let i = 0; i < 34; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-p';
+    const dur = (0.7 + Math.random() * 0.7).toFixed(2) + 's';
+    p.style.cssText = `left:${Math.random()*100}%;top:0;background:${colors[i%colors.length]};--dur:${dur};animation-delay:${(Math.random()*0.3).toFixed(2)}s`;
+    box.appendChild(p);
+    setTimeout(() => p.remove(), 1600);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  YOUTUBE IFRAME API
+// ══════════════════════════════════════════════
+let ytPlayer = null, ytReady = false;
+let tickInterval = null;
+let currentLineIdx = -1;
+let _lyrics = [];
+let autoScroll = true;
+let showJP     = true;
+let speed      = 1;
+
+window.onYouTubeIframeAPIReady = () => { ytReady = true; maybeInitPlayer() };
+const ytScript   = document.createElement('script');
+ytScript.src     = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(ytScript);
+
+let _pendingYTId = null;
+function maybeInitPlayer() {
+  if (!ytReady || !_pendingYTId) return;
+  ytPlayer = new YT.Player('yt-frame', {
+    videoId:     _pendingYTId,
+    playerVars:  { rel:0, modestbranding:1 },
+    events: {
+      onReady: e => {
+        startTick();
+        // Award XP when video ends
+        e.target.addEventListener('onStateChange', () => {});
+      },
+      onStateChange: e => {
+        document.getElementById('btn-play').textContent = e.data === 1 ? '⏸' : '▶';
+      }
+    }
+  });
+}
+
+function startTick() {
+  clearInterval(tickInterval);
+  tickInterval = setInterval(() => {
+    if (!ytPlayer?.getCurrentTime) return;
+    const t   = ytPlayer.getCurrentTime();
+    const dur = ytPlayer.getDuration() || 1;
+    document.getElementById('progress-fill').style.width = (t / dur * 100) + '%';
+    document.getElementById('t-cur').textContent = fmt(t);
+    document.getElementById('t-dur').textContent = fmt(dur);
+    syncLyrics(t);
+    checkSongComplete(t, dur);
+  }, 200);
+}
+
+function fmt(s) {
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+// ── Controls ──
+document.getElementById('btn-play').onclick = () => {
+  if (!ytPlayer?.getPlayerState) return;
+  ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+};
+
+document.getElementById('btn-auto').onclick = function () {
+  autoScroll = !autoScroll;
+  this.classList.toggle('active', autoScroll);
+};
+
+document.getElementById('btn-jp').onclick = function () {
+  showJP = !showJP;
+  this.classList.toggle('active', showJP);
+  document.querySelectorAll('.kr-jp').forEach(el => {
+    el.style.display = showJP ? '' : 'none';
+  });
+};
+
+document.getElementById('btn-speed').onclick = function () {
+  const opts = [0.5, 0.75, 1, 1.25];
+  speed = opts[(opts.indexOf(speed) + 1) % opts.length];
+  this.textContent = speed + '×';
+  ytPlayer?.setPlaybackRate(speed);
+};
+
+document.getElementById('btn-replay').onclick = () => replayLine(currentLineIdx);
+
+document.getElementById('progress-bar').onclick = function (e) {
+  if (!ytPlayer?.getDuration) return;
+  ytPlayer.seekTo((e.offsetX / this.offsetWidth) * ytPlayer.getDuration(), true);
+};
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (e.key === ' ')              { e.preventDefault(); document.getElementById('btn-play').click() }
+  if (e.key === 'r' || e.key === 'R') replayLine(currentLineIdx);
+  if (e.key === 'j' || e.key === 'J') document.getElementById('btn-jp').click();
+});
+
+// ── Lyric sync ──
+function syncLyrics(t) {
+  let idx = -1;
+  for (let i = 0; i < _lyrics.length; i++) {
+    if (_lyrics[i].time <= t) idx = i;
+  }
+  if (idx === currentLineIdx) return;
+  currentLineIdx = idx;
+
+  document.querySelectorAll('.kr-line').forEach((el, i) => {
+    el.classList.remove('active','past','future');
+    if      (i < idx)  el.classList.add('past');
+    else if (i === idx) el.classList.add('active');
+    else               el.classList.add('future');
+  });
+
+  if (idx >= 0 && autoScroll) {
+    document.querySelector('.kr-line.active')?.scrollIntoView({ behavior:'smooth', block:'center' });
+  }
+  if (idx >= 0) addXP(2); // 2 XP per new line
+}
+
+// ── Song complete XP ──
+let _endAwarded = false;
+function checkSongComplete(t, dur) {
+  if (!_endAwarded && dur > 10 && dur - t < 4) {
+    _endAwarded = true;
+    const bonus = _songData?.xp || 60;
+    addXP(bonus);
+    document.getElementById('xp-badge').textContent = `+${bonus} XP earned! 🎉`;
+  }
+}
+
+// ── Replay a line ──
+function replayLine(idx) {
+  if (!ytPlayer || idx < 0 || !_lyrics[idx]) return;
+  ytPlayer.seekTo(Math.max(0, _lyrics[idx].time - 0.2), true);
+  ytPlayer.playVideo();
+  const btn = document.getElementById('btn-replay');
+  btn.classList.add('spinning');
+  setTimeout(() => btn.classList.remove('spinning'), 380);
+  const lineBtns = document.querySelectorAll('.kr-line');
+  const rb = lineBtns[idx]?.querySelector('.replay-btn');
+  if (rb) { rb.classList.add('spinning'); setTimeout(() => rb.classList.remove('spinning'), 380) }
+}
+
+// ── Diff filter chips ──
+const activeDiffs = new Set(['easy','intermediate','advanced','slang']);
+document.querySelectorAll('.diff-chip').forEach(chip => {
+  chip.onclick = function () {
+    const d = this.dataset.d;
+    activeDiffs.has(d) ? activeDiffs.delete(d) : activeDiffs.add(d);
+    this.classList.toggle('on');
+    document.querySelectorAll('.kr-line').forEach(el => {
+      el.style.display = activeDiffs.has(el.dataset.diff || 'easy') ? '' : 'none';
+    });
+  };
+});
+
+// ══════════════════════════════════════════════
+//  SLANG TOOLTIP
+// ══════════════════════════════════════════════
+const TIP = document.getElementById('slang-tip');
+let tipTimer;
+function showTip(word, data, cx, cy) {
+  clearTimeout(tipTimer);
+  TIP.innerHTML = `
+    <div class="tt-word">${word}</div>
+    <div class="tt-arrow">↓</div>
+    <div class="tt-standard">${data.standard || word}</div>
+    <div class="tt-jp">意味: ${data.jp || ''}</div>
+    <div class="tt-tone">${data.tone || 'neutral'}</div>`;
+  TIP.style.display = 'block';
+  const w = 260, h = 140;
+  let left = cx + 14, top = cy - h / 2;
+  if (left + w > innerWidth)  left = cx - w - 14;
+  if (top < 6)                top  = 6;
+  if (top + h > innerHeight)  top  = innerHeight - h - 6;
+  TIP.style.left = left + 'px';
+  TIP.style.top  = top  + 'px';
+  tipTimer = setTimeout(() => TIP.style.display = 'none', 3600);
+}
+document.addEventListener('click', e => {
+  if (!e.target.classList.contains('slang-word')) TIP.style.display = 'none';
+});
+
+// ══════════════════════════════════════════════
+//  BUILD LYRICS DOM
+// ══════════════════════════════════════════════
+function buildLyrics(lyrics, slangMap) {
+  const wrap = document.getElementById('lyrics-wrap');
+  wrap.innerHTML = '';
+
+  const diffLabel = { easy:'Easy', intermediate:'Intermediate', advanced:'Advanced', slang:'Slang' };
+  const diffBadge = { easy:'db-easy', intermediate:'db-inter', advanced:'db-adv', slang:'db-slang' };
+
+  lyrics.forEach((line, i) => {
+    const diff = line.difficulty || 'easy';
+    const div  = document.createElement('div');
+    div.className  = 'kr-line future';
+    div.dataset.diff = diff;
+
+    // Wrap slang words
+    let engHtml = escHtml(line.english);
+    if (slangMap) {
+      Object.entries(slangMap).forEach(([word, data]) => {
+        const safe = word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        engHtml = engHtml.replace(
+          new RegExp(`(${safe})`, 'gi'),
+          `<span class="slang-word" data-slang="${escHtml(word)}">$1</span>`
+        );
+      });
+    }
+
+    div.innerHTML = `
+      <div class="kr-line-body">
+        <div class="kr-en">
+          <span class="diff-badge ${diffBadge[diff]}">${diffLabel[diff]}</span>
+          <span class="kr-en-text">${engHtml}</span>
+        </div>
+        ${line.japanese ? `<div class="kr-jp">${escHtml(line.japanese)}</div>` : ''}
+      </div>
+      <div class="kr-line-actions">
+        <button class="replay-btn" title="Replay this line">↩</button>
+      </div>`;
+
+    // Click on line → seek + build quiz
+    div.addEventListener('click', e => {
+      if (e.target.classList.contains('slang-word') || e.target.classList.contains('replay-btn')) return;
+      seekLine(i);
+      buildLineQuiz(i, lyrics);
+    });
+
+    // Replay button
+    div.querySelector('.replay-btn').onclick = e => {
+      e.stopPropagation();
+      replayLine(i);
+    };
+
+    // Slang word clicks
+    div.querySelectorAll('.slang-word').forEach(sw => {
+      sw.onclick = e => {
+        e.stopPropagation();
+        const d = slangMap?.[sw.dataset.slang];
+        if (d) showTip(sw.dataset.slang, d, e.clientX, e.clientY);
+      };
+    });
+
+    wrap.appendChild(div);
+  });
+}
+
+function seekLine(i) {
+  if (!ytPlayer || !_lyrics[i]) return;
+  ytPlayer.seekTo(Math.max(0, _lyrics[i].time - 0.15), true);
+  ytPlayer.playVideo();
+  currentLineIdx = i - 1;
+}
+
+// ══════════════════════════════════════════════
+//  VOCAB SIDEBAR
+// ══════════════════════════════════════════════
+function buildVocab(vocab) {
+  const el = document.getElementById('panel-vocab');
+  if (!vocab?.length) {
+    el.innerHTML = '<div style="color:var(--txt3);font-size:13px">No vocab attached to this song yet. The admin can add it!</div>';
+    return;
+  }
+  el.innerHTML = vocab.map(v => `
+    <div class="vocab-item">
+      <div class="vi-word">${escHtml(v.word)}</div>
+      <div class="vi-jp">${escHtml(v.jp || '')}</div>
+      ${v.note ? `<div class="vi-note">${escHtml(v.note)}</div>` : ''}
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════
+//  QUIZ SIDEBAR
+// ══════════════════════════════════════════════
+let _quizLyricsRef = [];
+
+function buildLineQuiz(idx, lyrics) {
+  _quizLyricsRef = lyrics;
+  // Switch to quiz tab
+  switchTab('quiz');
+
+  const line  = lyrics[idx];
+  const words = line.english.split(' ');
+  const cands = words.filter(w => w.replace(/[^a-zA-Z]/g,'').length > 3);
+  if (!cands.length) {
+    document.getElementById('kq-q').textContent = 'This line is too short to quiz — try another!';
+    document.getElementById('kq-opts').innerHTML = '';
+    return;
+  }
+  const pick   = cands[Math.floor(Math.random() * cands.length)];
+  const ans    = pick.replace(/[^a-zA-Z']/g,'');
+  const blanked = line.english.replace(pick,
+    `<strong style="color:var(--yellow);border-bottom:2px solid var(--yellow);padding:0 3px">[   ?   ]</strong>`);
+
+  document.getElementById('kq-q').innerHTML = `"${blanked}"`;
+  document.getElementById('kq-hint').textContent = '';
+  document.getElementById('kq-xp').textContent   = '';
+  document.getElementById('kq-next').style.display = 'none';
+
+  const pool  = ['the','you','never','time','love','heart','gone','stay','night','dream','make','real','know','feels'];
+  const wrong = pool.filter(w => w !== ans.toLowerCase()).sort(() => Math.random()-.5).slice(0,3);
+  const opts  = [ans, ...wrong].sort(() => Math.random()-.5);
+  const optsEl = document.getElementById('kq-opts');
+  optsEl.innerHTML = '';
+  opts.forEach(opt => {
+    const btn = document.createElement('div');
+    btn.className = 'kq-opt';
+    btn.textContent = opt;
+    btn.onclick = () => {
+      optsEl.querySelectorAll('.kq-opt').forEach(b => Object.assign(b.style, { pointerEvents:'none' }));
+      const hint = document.getElementById('kq-hint');
+      const xpEl = document.getElementById('kq-xp');
+      if (opt === ans) {
+        btn.classList.add('correct');
+        hint.textContent = '✓ 正解！ Correct!';
+        hint.style.color = 'var(--green)';
+        xpEl.textContent = '+20 XP!';
+        addXP(20);
+      } else {
+        btn.classList.add('wrong');
+        optsEl.querySelectorAll('.kq-opt').forEach(b => { if (b.textContent === ans) b.classList.add('correct') });
+        hint.textContent = `✗ Answer: "${ans}"`;
+        hint.style.color = 'var(--red)';
+      }
+      document.getElementById('kq-next').style.display = 'block';
+    };
+    optsEl.appendChild(btn);
+  });
+}
+
+function nextQuiz() {
+  if (!_quizLyricsRef.length) return;
+  buildLineQuiz(Math.floor(Math.random() * _quizLyricsRef.length), _quizLyricsRef);
+}
+
+// ── Tab switching ──
+function switchTab(name) {
+  document.querySelectorAll('.kr-tab').forEach(t  => t.classList.toggle('on', t.dataset.tab === name));
+  document.querySelectorAll('.kr-panel').forEach(p => p.classList.toggle('hidden', p.id !== `panel-${name}`));
+}
+document.querySelectorAll('.kr-tab').forEach(tab => {
+  tab.onclick = () => switchTab(tab.dataset.tab);
+});
+
+// ══════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseVocabString(str) {
+  if (!str) return [];
+  return str.split('\n').map(l => {
+    const [word, jp] = l.split(/→|→/).map(s => s.trim());
+    return word ? { word, jp: jp || '' } : null;
+  }).filter(Boolean);
+}
+
+// ══════════════════════════════════════════════
+//  MAIN INIT
+// ══════════════════════════════════════════════
+let _songData = null;
+
+async function init() {
+  initXP();
+
+  // Read song ID from URL ?id=xxx
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { window.location.href = 'music_library.html'; return; }
+
+  try {
+    const song = await DB.getSongById(id);
+    if (!song) { window.location.href = 'music_library.html'; return; }
+    _songData = song;
+
+    // Page title + info row
+    document.title = `${song.title} — Ekaidan Karaoke`;
+    document.getElementById('song-title').textContent  = song.title;
+    document.getElementById('song-artist').textContent = song.artist || '';
+    document.getElementById('xp-badge').textContent    = `+${song.xp || 60} XP on complete`;
+
+    // Nav user pill
+    const prof = AUTH.currentProfile();
+    if (prof) {
+      document.getElementById('nav-user').innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;background:var(--bg3);padding:5px 12px;border-radius:100px;border:0.5px solid var(--border2)">
+          <span style="font-size:12px;color:var(--yellow);font-weight:700">Lv${prof.level||1}</span>
+          <span style="font-size:13px;color:var(--txt2)">${(prof.xp||0).toLocaleString()} XP</span>
+        </div>
+        <span style="font-size:13px;font-weight:700">${prof.username}</span>`;
+    }
+
+    // Build lyric objects — merge stored arrays with fallback spacing
+    const rawLines = song.lyrics || [];
+    const times    = Array.isArray(song.timestamps)   ? song.timestamps   : [];
+    const jps      = Array.isArray(song.translations)  ? song.translations  : [];
+    const diffs    = Array.isArray(song.difficulties)  ? song.difficulties  : [];
+
+    _lyrics = rawLines.map((eng, i) => ({
+      time:       typeof times[i] === 'number' ? times[i] : i * 9,
+      english:    eng,
+      japanese:   jps[i]   || '',
+      difficulty: diffs[i] || 'easy',
+    }));
+
+    // Slang map — stored as JSONB object in DB or fallback empty
+    const slangMap = (song.slang && typeof song.slang === 'object' && !Array.isArray(song.slang))
+      ? song.slang : null;
+
+    // Vocab — try vocab_list (JSONB array) first, then parse vocab string
+    const vocab = Array.isArray(song.vocab_list) && song.vocab_list.length
+      ? song.vocab_list
+      : parseVocabString(song.vocab || '');
+
+    buildLyrics(_lyrics, slangMap);
+    buildVocab(vocab);
+
+    // Kick off YouTube player
+    _pendingYTId = song.youtube_id;
+    if (ytReady) maybeInitPlayer();
+
+  } catch (e) {
+    console.error('Karaoke init error:', e);
+    document.getElementById('lyrics-wrap').innerHTML =
+      '<div class="no-song"><div style="font-size:36px">😔</div><div>Could not load this song. <a href="music_library.html" style="color:var(--blue)">Back to library →</a></div></div>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

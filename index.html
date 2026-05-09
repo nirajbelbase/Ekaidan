@@ -1271,8 +1271,47 @@
     });
   </script>
 
-  <script src="site_js_final.js"></script>
+  <script src="site_js_v5.js"></script>
   <script src="main_integrated_final.js"></script>
+  <script>
+    /* ── LIVE NAV PROFILE ── */
+    (function initNav() {
+      const profile = AUTH.currentProfile();
+      const xpFill  = document.getElementById('xpfill');
+      const xpNum   = document.getElementById('xpnum');
+      const xpLabel = document.querySelector('.xp-label');
+      const lvlBadge= document.querySelector('.level-badge');
+      if (profile) {
+        const lvl  = profile.level  || 1;
+        const xp   = profile.xp     || 0;
+        const xpInLvl = xp % 500;
+        const pct    = Math.min((xpInLvl / 500) * 100, 100);
+        if (xpFill)  xpFill.style.width = pct + '%';
+        if (xpNum)   xpNum.textContent  = xpInLvl.toLocaleString() + ' / 500 XP';
+        if (xpLabel) xpLabel.textContent = 'Lv ' + lvl;
+        if (lvlBadge) {
+          const titles = ['Rookie','Student','Speaker','Samurai','Master','Legend'];
+          lvlBadge.textContent = '★ ' + (titles[Math.min(lvl - 1, titles.length - 1)] || 'Legend');
+        }
+        // Nav button → music library for logged-in users
+        const navBtn = document.querySelector('.nav-btn');
+        if (navBtn) {
+          navBtn.innerHTML = `<span class="t-en">Music Library</span><span class="t-jp">音楽ライブラリ</span>`;
+          navBtn.onclick = () => { window.location.href = 'music_library.html'; };
+        }
+      } else {
+        // Guest: hide XP bar, show sign in button
+        const xpBarMini = document.querySelector('.xp-bar-mini');
+        if (xpBarMini) xpBarMini.style.display = 'none';
+        if (lvlBadge)  lvlBadge.style.display  = 'none';
+        const navBtn = document.querySelector('.nav-btn');
+        if (navBtn) {
+          navBtn.innerHTML = `<span class="t-en">Sign in</span><span class="t-jp">サインイン</span>`;
+          navBtn.onclick = () => { window.location.href = 'auth_page.html'; };
+        }
+      }
+    })();
+  </script>
 
 </body>
 
