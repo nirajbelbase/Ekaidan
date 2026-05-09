@@ -378,7 +378,7 @@ body { overflow-x:hidden; height:100% }
 // ══════════════════════════════════════════════
 //  AUTH GUARD
 // ══════════════════════════════════════════════
-if (!AUTH.requireAuth(location.href)) { /* redirected */ }
+// Auth check - allow viewing, prompt login on XP actions
 
 // ══════════════════════════════════════════════
 //  LEVEL SYSTEM
@@ -451,25 +451,31 @@ let autoScroll = true;
 let showJP     = true;
 let speed      = 1;
 
-window.onYouTubeIframeAPIReady = () => { ytReady = true; maybeInitPlayer() };
-const ytScript   = document.createElement('script');
-ytScript.src     = 'https://www.youtube.com/iframe_api';
-document.head.appendChild(ytScript);
+// Load YouTube IFrame API — set global callback BEFORE injecting script tag
+window.onYouTubeIframeAPIReady = () => {
+  ytReady = true;
+  maybeInitPlayer();
+};
+(function loadYTApi() {
+  if (document.getElementById('yt-api-script')) return;
+  const s = document.createElement('script');
+  s.id  = 'yt-api-script';
+  s.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(s);
+})();
 
 let _pendingYTId = null;
 function maybeInitPlayer() {
-  if (!ytReady || !_pendingYTId) return;
+  if (!ytReady || !_pendingYTId || ytPlayer) return;
   ytPlayer = new YT.Player('yt-frame', {
     videoId:     _pendingYTId,
     playerVars:  { rel:0, modestbranding:1 },
     events: {
       onReady: e => {
         startTick();
-        // Award XP when video ends
-        e.target.addEventListener('onStateChange', () => {});
       },
       onStateChange: e => {
-        document.getElementById('btn-play').textContent = e.data === 1 ? '⏸' : '▶';
+        document.getElementById('btn-play').textContent = e.data === YT.PlayerState.PLAYING ? '⏸' : '▶';
       }
     }
   });
@@ -859,9 +865,10 @@ async function init() {
     buildLyrics(_lyrics, slangMap);
     buildVocab(vocab);
 
-    // Kick off YouTube player
+    // Kick off YouTube player — set ID then call regardless of ytReady state
+    // (maybeInitPlayer guards against double-init and waits for ytReady)
     _pendingYTId = song.youtube_id;
-    if (ytReady) maybeInitPlayer();
+    maybeInitPlayer(); // no-op if !ytReady; onYouTubeIframeAPIReady will retry
 
   } catch (e) {
     console.error('Karaoke init error:', e);
